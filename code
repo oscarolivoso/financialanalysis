@@ -1,0 +1,289 @@
+#######
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(quantmod)
+#install.packages("showtext")
+###personalizacion de graficos
+library(showtext)
+font_add_google("Poppins", "Poppins")
+font_add_google("Roboto Mono", "Roboto Mono")
+showtext_auto()
+theme_set(theme_minimal())
+setwd("C:/Users/oscar/Documents/Escuela/Bedu/Proyecto/analisis_financiero/project_csv")
+dir()
+###company information
+company_information <-read.csv(file = "company_information.csv")
+company_info <- mutate(company_information, Ticker = Identifier)
+tickers <- c(company_info$Symbol)
+setSymbolLookup(tickers="yahoo")
+
+###cargar estado de resultados
+income_20 <- read.csv(file = "income_statement_fy20.csv", header = T)
+income_19 <- read.csv(file = "income_statement_fy19.csv", header = T)
+income_18 <- read.csv(file = "income_statement_fy18.csv", header = T)
+income_17 <- read.csv(file = "income_statement_fy17.csv", header = T)
+income_16 <- read.csv(file = "income_statement_fy16.csv", header = T)
+income_15 <- read.csv(file = "income_statement_fy15.csv", header = T)
+
+###cargar balance general
+balance_20 <- read.csv(file = "balance_sheet_fy20.csv", header = T)
+balance_19 <- read.csv(file = "balance_sheet_fy19.csv", header = T)
+balance_18 <- read.csv(file = "balance_sheet_fy18.csv", header = T)
+balance_17 <- read.csv(file = "balance_sheet_fy17.csv", header = T)
+balance_16 <- read.csv(file = "balance_sheet_fy16.csv", header = T)
+balance_15 <- read.csv(file = "balance_sheet_fy15.csv", header = T)
+
+###cargar estructura de capital
+capital_structure_20 <- read.csv(file = "capital_structure_fy20.csv", header = T)
+capital_structure_19 <- read.csv(file = "capital_structure_fy19.csv", header = T)
+capital_structure_18 <- read.csv(file = "capital_structure_fy18.csv", header = T)
+capital_structure_17 <- read.csv(file = "capital_structure_fy17.csv", header = T)
+capital_structure_16 <- read.csv(file = "capital_structure_fy16.csv", header = T)
+capital_structure_15 <- read.csv(file = "capital_structure_fy15.csv", header = T)
+
+income_2020 <- cbind(income_20, Year_as=as.Date(paste(2020,12,31,sep="-")),Year=2020) 
+income_2019 <- cbind(income_19, Year_as=as.Date(paste(2019,12,31,sep="-")),Year=2019) 
+income_2018 <- cbind(income_18, Year_as=as.Date(paste(2018,12,31,sep="-")),Year=2018) 
+income_2017 <- cbind(income_17, Year_as=as.Date(paste(2017,12,31,sep="-")),Year=2017) 
+income_2016 <- cbind(income_16, Year_as=as.Date(paste(2016,12,31,sep="-")),Year=2016) 
+income_2015 <- cbind(income_15, Year_as=as.Date(paste(2015,12,31,sep="-")),Year=2015) 
+
+income_statement <- rbind(income_2020,income_2019,income_2018,income_2017, income_2016, income_2015)
+
+balance_2020 <- cbind(balance_20, Year_as=as.Date(paste(2020,12,31,sep="-")),Year=2020) 
+balance_2019 <- cbind(balance_19, Year_as=as.Date(paste(2019,12,31,sep="-")),Year=2019) 
+balance_2018 <- cbind(balance_18, Year_as=as.Date(paste(2018,12,31,sep="-")),Year=2018) 
+balance_2017 <- cbind(balance_17, Year_as=as.Date(paste(2017,12,31,sep="-")),Year=2017) 
+balance_2016 <- cbind(balance_16, Year_as=as.Date(paste(2016,12,31,sep="-")),Year=2016) 
+balance_2015 <- cbind(balance_15, Year_as=as.Date(paste(2015,12,31,sep="-")),Year=2015) 
+
+balance_sheet <- rbind(balance_2020,balance_2019,balance_2018,balance_2017,balance_2016,balance_2015)
+
+capital_2020 <- cbind(capital_structure_20, Year_as=as.Date(paste(2020,12,31,sep="-")),Year=2020)
+capital_2019 <- cbind(capital_structure_19, Year_as=as.Date(paste(2019,12,31,sep="-")),Year=2019)
+capital_2018 <- cbind(capital_structure_18, Year_as=as.Date(paste(2018,12,31,sep="-")),Year=2018)
+capital_2017 <- cbind(capital_structure_17, Year_as=as.Date(paste(2017,12,31,sep="-")),Year=2017)
+capital_2016 <- cbind(capital_structure_16, Year_as=as.Date(paste(2016,12,31,sep="-")),Year=2016)
+capital_2015 <- cbind(capital_structure_15, Year_as=as.Date(paste(2015,12,31,sep="-")),Year=2015)
+
+capital_structure <- rbind(capital_2020,capital_2019,capital_2018,capital_2017,capital_2016,capital_2015)
+
+str(income_statement)
+str(balance_sheet)
+str(capital_structure)
+
+####EDA TAMAÑO DE MUESTRA S&P VS MUESTRA FINANCIEROS
+conteo_sp <- 
+  company_info %>%
+  group_by(GICS_Sector) %>%
+  summarize(conteo=n(), data= cbind("S&P"))
+
+#asignar colores a variables cualitativas
+my_colors <- c("#393e46","#687980","#B1BBBD","#02475e","#03779E","#51c4d3","#1D8265","#24A68C","#41B5A8","#FF9900","#ffcd00")
+names(my_colors) <- levels(factor(c(conteo_sp$GICS_Sector)))
+my_scale_fill_industry <- scale_fill_manual(name="Sector",values = my_colors)
+my_scale_color_industry <- scale_color_manual(name="Sector",values = my_colors)
+
+#comparar muestra vs indice
+conteo_sp_muestra <- 
+  income_statement %>%
+  filter(format(Year_as,"%Y")=="2020") %>%
+  merge(company_info,conteo_sp_muestra, by.x="Ticker", by.y = "Ticker") %>%
+  select(Ticker, GICS_Sector) %>%
+  group_by(GICS_Sector) %>%
+  summarize(conteo=n(), data= cbind("Sample S&P"))
+
+exploracion <- rbind(conteo_sp, conteo_sp_muestra)
+
+####comparo mi muestra vs el índice
+ggplot(data = exploracion, mapping = aes(x=data, y=conteo, fill=GICS_Sector))+
+  geom_bar(stat = "identity")+
+  geom_text(aes(label=conteo), position = position_stack(vjust = 0.5),
+            colour="white", size =3)+
+  labs(title= "S&P vs S&P Sample",x=NULL, y="Number of companies", fill="Sectors")+
+  my_scale_fill_industry
+
+######Sacar solo las columnas que se van a usar del balance general
+bs <- 
+  merge(balance_sheet,company_info, by.x="Ticker", by.y="Ticker") %>%
+  mutate(OTHER_CURRENT_ASSETS=TOTAL_CA-(CASH_EQUIV+ST_INVEST+TOTAL_RECEIV+INVENTORY),
+         DEPRECIATION=NPPE-GPPE,
+         OTHER_NON_CURRENT_ASSETS=((NPPE+TOTAL_CA+LT_INVEST+GW_INTAN-TOTAL_ASSETS)*-1),
+         NON_CURRENT_ASSETS=(NPPE+LT_INVEST+GW_INTAN+OTHER_NON_CURRENT_ASSETS),
+         OTHER_NON_CURRENT_LIAB=((TOTAL_CL-TOTAL_LIAB+LT_DEBT+CAPITAL_LEASES)*-1),
+         NON_CURRENT_LIAB=(LT_DEBT+CAPITAL_LEASES+OTHER_NON_CURRENT_LIAB)) %>%
+  select(Ticker,
+         Symbol,
+         Stock,
+         "Sector"=GICS_Sector,
+         Year_as,Year,Company_Name,
+         "CASH" = CASH_EQUIV,
+         "ST_INVESTMENTS"= ST_INVEST,
+         "RECEIVABLES"=TOTAL_RECEIV,
+         "INVENTORY"=INVENTORY,
+         OTHER_CURRENT_ASSETS,
+         "TOTAL_CURRENT_ASSETS"=TOTAL_CA,
+         "PP&E"=GPPE,
+         DEPRECIATION,
+         "LT_INVESTMENTS"=LT_INVEST,
+         "INTANGIBLES_GW"=GW_INTAN,
+         OTHER_NON_CURRENT_ASSETS,
+         NON_CURRENT_ASSETS,
+         TOTAL_ASSETS,
+         #Aqui empiezan los pasivos
+         "PAYABLES"=AP,
+         ST_DEBT,
+         "CPLTD_DEBT"=CURRENT_PORT_DEBT,
+         "CPLTD_LEASES"=CURRENT_PORT_LEASES,
+         "CURRENT_LIAB"=TOTAL_CL,
+         LT_DEBT,
+         "LT_LEASES"=CAPITAL_LEASES,
+         OTHER_NON_CURRENT_LIAB,
+         NON_CURRENT_LIAB,
+         TOTAL_LIAB,
+         #aqui empieza el capital contable
+         "RETAINED_EAR"=RE,
+         TOTAL_EQUITY
+         )
+
+is <- 
+  merge(income_statement,company_info, by.x="Ticker", by.y="Ticker") %>%
+  select(Ticker,
+         Symbol,
+         Stock,
+         "Sector"=GICS_Sector,
+         Year,Year_as,Company_Name,
+         "TOTAL_REVENUES"=Total_Revenues,
+         "COGS"=Cost_Of_Revenues,
+         "GROSS_PROFIT"=Gross_Profit,
+         "SG_A"=Selling_General_._Admin_Exp,
+         "R_D"=R_._D_Exp,
+         "D_A"=Depreciation_._Amort,
+         "A_INTANGIBLES"=Amort_of_Goodwill_and_Intangibles,
+         "NET_INTEREST_EXP"=Net_Interest_Exp,
+         "UNUSUAL_ITEMS"=Total_Unusual_Items,
+         "EBT"=EBT_Incl_Unusual_Items,
+         "TAX_EXPENSE"=Income_Tax_Expense,
+         "E_CONT_OPER"=Earnings_from_Cont_Ops,
+         "E_DISC_OPER"=Earnings_of_Discontinued_Ops,
+         "EXTR_ITEMS"=Extraord_Item_._Account_Change,
+         "OTHER_ADJUSTMENTS"=Pref_Dividends_and_Other_Adj,
+         "M_A_COST"=Merger.Restructuring_Costs,
+         "NET_INCOME_INCL_EI"=NI_to_Common_Incl_Extra_Items,
+         "NET_INCOME_EXCL_EI"=NI_to_Common_Excl_Extra_Items,
+         #######otros gastos
+         "RENTAL_EXPENSE"=Net_Rental_Expense,
+         "INTEREST_LT"=Interest_On_Long_Term_Debt,
+         "TAXES"=Total_Current_Taxes,
+         "DEFERRED_TAX"=Total_Deferred_Taxes,
+         #####otras metricas
+         EBIT,
+         EBITDA,
+         "CONSOLIDATED_EBITDA"=EBITDA_.Incl_Equity_Inc_from_Affiliates.,
+         EBITDAR)
+
+cs <- merge(capital_structure,company_info, by.x="Ticker", by.y="Ticker") %>%
+  select(Ticker,
+         Symbol,
+         Stock,
+         "Sector"=GICS_Sector,
+         Year,Year_as,Company_Name,
+         "COMMERCIAL"= CP,
+         "REVOLVING"= RC,
+         TERM_LOANS,
+         SR_BONDS_NOTES,
+         SUB_BONDS_NOTES,
+         CAPITAL_LEASES_TOTAL,
+         OTHER_DEBT,
+         TOTAL_PRINCIPAL,
+         SR_DEBT,
+         SR_DEBT_PCT,
+         TOTAL_SUB_DEBT,
+         CONVERT,
+         ST_DEBT,
+         ST_DEBT_PCT,
+         LT_DEBT_CAPITAL_LEASES,
+         SR_DEBT_EBITDA,
+         SR_DEBT_EBITDA_CAPEX,
+         TOTAL_SUB_DEBT_EBITDA)
+
+#graficar por industria algun rubro del estado de resultados
+#format(Year_as,"%Y")==year_select)
+
+year_select <- 2020
+is_year <- filter(is,Year==year_select) %>% 
+  ggplot(aes(x=Sector,y=TOTAL_REVENUES,color=Sector,label=Company_Name),stat = 'identity')+
+  my_scale_color_industry+
+           coord_flip()+
+  geom_jitter(size=1.5,alpha=0.2,width = .1)+
+  stat_summary(fun=mean,geom="point",size=2.5)+
+  scale_y_continuous(labels = scales::comma)+
+  labs(title = paste("Total revenues in year:",year_select))+
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5))
+  
+ggplotly(is_year)
+
+is_year2 <- filter(is,format(Year_as,"%Y")==year_select) %>% 
+  ggplot(aes(x=Sector,y=TOTAL_REVENUES,color=Sector,label=Company_Name),stat = 'identity')+
+  my_scale_color_industry+
+  coord_flip()+
+  geom_boxplot(color="gray60",outlier.alpha = 0)+
+  geom_jitter(size=1.5,alpha=0.2,width = .1)+
+  scale_y_continuous(labels = scales::comma)+
+  labs(title = paste(year_select))+
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5))
+  
+ggplotly(is_year2)
+
+
+#####visualizar algún dato por sector
+sector <- ""
+is_bysector <- filter(is,format(Year_as,"%Y")==year_select, Sector == sector) %>% 
+  ggplot(aes(x=Sector, y=TOTAL_REVENUES,color=Sector,label=Company_Name),stat = 'identity')+
+  my_scale_color_industry+
+  coord_flip()+
+  geom_boxplot(color="gray60",outlier.alpha = 0)+
+  geom_jitter(size=1.5,alpha=0.2,width = .1)+
+  scale_y_continuous(labels = scales::comma)+
+  labs(title = paste(year_select))+
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5))
+
+ggplotly(is_bysector)
+
+######merge balance sheet 
+gics_sub <- select(company_info, Ticker, Symbol, GICS_Sub.Industry)
+unique(gics_sub)
+merge_isbs <- merge.data.frame(bs, is, by.x = c("Ticker","Year"), by.y=c("Ticker","Year"))
+#####con subsector
+merge_is_bs <- merge(merge_isbs, gics_sub, by.x="Ticker", by.y="Ticker")
+
+#####estudio de credito
+#apalancamiento de todas las companias menos financials
+credit_risk<-mutate(merge_is_bs,TOTAL_DEBT=(ST_DEBT+CPLTD_DEBT+CPLTD_LEASES+LT_DEBT+LT_LEASES),
+          DEBT_TO_EBITDA = round(TOTAL_DEBT/CONSOLIDATED_EBITDA, digits = 2)) %>%
+  select(Company_Name.x, Sector.x, Symbol.x,DEBT_TO_EBITDA,Year, TOTAL_REVENUES, TOTAL_DEBT, EBITDA)
+
+####la idea aqui es andir mas indicadores
+
+debt_ebitda <-credit_risk %>%
+  plot_ly(
+    x=~EBITDA,
+    y = ~TOTAL_DEBT,
+    size = ~TOTAL_REVENUES, 
+    color = ~Sector.x, 
+    frame = ~Year, 
+    text = ~Company_Name.x, 
+    #hoverinfo = "text",
+    type = 'scatter',
+    mode = 'markers'
+  ) %>%
+  layout(
+    xaxis = list(
+      type = "log"
+    )
+  )
+debt_ebitda
